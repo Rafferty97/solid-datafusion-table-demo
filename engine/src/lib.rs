@@ -81,7 +81,7 @@ pub async fn create_record_set(min: u32, max: u32) -> Result<RecordSet, String> 
         ])
         .map_err(|_| "cannot select")?
         .unnest_columns(&["n"])
-        .map_err(|_| "canno unnest")?
+        .map_err(|_| "cannot unnest")?
         .collect()
         .await
         .map_err(|_| "cannot collect")?;
