@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "apache-arrow": "^21.1.0",
-    "arrow-table": "file:../../arrow-table/ts",
     "engine": "file:../engine/pkg",
     "solid-js": "^1.9.10",
     "solid-tabular": "file:../../solid-tabular",
