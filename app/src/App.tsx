@@ -1,28 +1,27 @@
 import { Table, createTableState } from 'solid-tabular'
 import { createRecordSetView } from 'arrow-table'
+// import { makeTable, tableToIPC } from 'apache-arrow'
+import { create_record_set } from 'engine'
 import 'solid-tabular/styles.css'
-import { makeTable, tableToIPC } from 'apache-arrow'
+
+const recordSet = await create_record_set(1, 21)
 
 function App() {
-  const table = makeTable({
-    A: new Int32Array([1, 2, 3]),
-    B: new Int32Array([4, 5, 6]),
-    C: new Int32Array([7, 8, 9]),
-  })
+  // const table = makeTable({
+  //   A: new Int32Array([1, 2, 3]),
+  //   B: new Int32Array([4, 5, 6]),
+  //   C: new Int32Array([7, 8, 9]),
+  // })
 
-  const raw = tableToIPC(table)
+  // const raw = tableToIPC(table)
 
   const data = createRecordSetView({
-    schema: raw.slice(0, 232),
-    numRows: 3,
-    getRows: () => Promise.resolve(raw.slice(232)),
+    schema: recordSet.encode_schema(),
+    numRows: recordSet.num_rows(),
+    getRows: (start, end) => Promise.resolve(recordSet.encode_rows(start, end)),
   })
 
-  // const tableProps = createTableState([
-  //   { A: 1, B: 2, C: 3 },
-  //   { A: 4, B: 5, C: 6 },
-  //   { A: 7, B: 8, C: 9 },
-  // ])
+  const tableProps = createTableState([])
 
   return (
     <div style={{ width: '100%', padding: '20px' }}>
@@ -31,6 +30,12 @@ function App() {
         numRows={data.numRows}
         getCellValue={(row, col) => data.getCellValue(row, col) ?? ''}
         onViewportChanged={data.setVisibleRange}
+        activeRange={tableProps.activeRange}
+        setActiveRange={tableProps.setActiveRange}
+        getColumnSize={tableProps.getColumnSize}
+        setColumnSize={tableProps.setColumnSize}
+        resetColumnSize={tableProps.resetColumnSize}
+        columnsResizeable
       />
     </div>
   )

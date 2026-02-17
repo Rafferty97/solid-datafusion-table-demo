@@ -11,8 +11,10 @@
   "dependencies": {
     "apache-arrow": "^21.1.0",
     "arrow-table": "file:../../arrow-table/ts",
+    "engine": "file:../engine/pkg",
     "solid-js": "^1.9.10",
-    "solid-tabular": "file:../../solid-tabular"
+    "solid-tabular": "file:../../solid-tabular",
+    "vite-plugin-wasm": "^3.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
