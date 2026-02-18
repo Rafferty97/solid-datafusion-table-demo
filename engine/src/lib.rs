@@ -1,4 +1,4 @@
-pub mod record_set;
+mod record_set;
 mod utils;
 
 use std::ops::Range;
@@ -35,38 +35,20 @@ pub async fn file_read_test(file: web_sys::Blob) -> Vec<u8> {
 }
 
 pub struct FileHandle {
-    // size: usize,
-    // read: js_sys::Function,
     file: web_sys::Blob,
 }
 
 impl FileHandle {
     pub fn size(&self) -> usize {
-        // self.size
-
         self.file.size() as usize
     }
 
     pub async fn read(&self, range: Range<usize>) -> Vec<u8> {
-        // let start = (range.start as f64).into();
-        // let end = (range.end as f64).into();
-        // let result: JsValue = self
-        //     .read
-        //     .call2(&self.read, &start, &end)
-        //     .expect("'read' must be a function");
-        // let result = match js_sys::Promise::try_from_js_value(result) {
-        //     Ok(promise) => JsFuture::from(promise).await.unwrap(),
-        //     Err(result) => result,
-        // };
-        // js_sys::Uint8Array::try_from_js_value(result)
-        //     .expect("'read' must return a Uint8Array or Promise<Uint8Array>")
-        //     .to_vec()
-
-        let sliced = self
+        let bytes = self
             .file
             .slice_with_i32_and_i32(range.start as _, range.end as _)
             .unwrap();
-        let bytes = JsFuture::from(sliced.array_buffer()).await.unwrap();
+        let bytes = JsFuture::from(bytes.array_buffer()).await.unwrap();
         let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
         // let bytes = decoder
         //     .as_ref()
