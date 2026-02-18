@@ -1,29 +1,67 @@
+mod js_object_store;
 mod record_set;
 mod utils;
 
 use std::ops::Range;
+use std::str::FromStr;
+use std::sync::Arc;
 
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::datatypes::Schema;
 use datafusion::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
+use crate::js_object_store::JsObjectStore;
 use crate::record_set::RecordSet;
 
 #[wasm_bindgen]
-pub async fn create_record_set(min: u32, max: u32) -> Result<RecordSet, String> {
-    let batches = SessionContext::new()
-        .read_empty()
-        .map_err(|_| "cannot read empty")?
-        .select([
-            lit("hello world").alias("foo"),
-            range(lit(min), lit(max), lit(1)).alias("n"),
-        ])
-        .map_err(|_| "cannot select")?
-        .unnest_columns(&["n"])
-        .map_err(|_| "cannot unnest")?
+pub fn empty() -> Result<RecordSet, String> {
+    let schema = Schema::empty().into();
+    let batches = vec![RecordBatch::new_empty(schema)];
+    Ok(batches.into())
+}
+
+#[wasm_bindgen]
+pub async fn read_csv(file: web_sys::Blob) -> Result<RecordSet, String> {
+    // let batches = SessionContext::new()
+    //     .read_empty()
+    //     .map_err(|_| "cannot read empty")?
+    //     .select([
+    //         lit("hello world").alias("foo"),
+    //         range(lit(min), lit(max), lit(1)).alias("n"),
+    //     ])
+    //     .map_err(|_| "cannot select")?
+    //     .unnest_columns(&["n"])
+    //     .map_err(|_| "cannot unnest")?
+    //     .collect()
+    //     .await
+    //     .map_err(|_| "cannot collect")?;
+
+    let bytes = JsFuture::from(file.array_buffer()).await.unwrap();
+    let bytes = js_sys::Uint8Array::from(bytes).to_vec();
+    web_sys::console::log_1(&format!("bytes = {}", bytes.len()).into());
+    web_sys::console::log_1(
+        &format!(
+            "{}",
+            String::from_utf8_lossy(&bytes[..bytes.len().min(100)])
+        )
+        .into(),
+    );
+    let object_store = Arc::new(JsObjectStore::new(bytes));
+
+    let ctx = SessionContext::new();
+    ctx.register_object_store(&url::Url::from_str("js:///").unwrap(), object_store);
+
+    let batches = ctx
+        .read_csv("js:///input.csv", Default::default())
+        .await
+        .unwrap()
         .collect()
         .await
-        .map_err(|_| "cannot collect")?;
+        .unwrap();
+
+    web_sys::console::log_1(&format!("batches = {}", batches.len()).into());
 
     Ok(batches.into())
 }

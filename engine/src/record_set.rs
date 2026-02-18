@@ -1,4 +1,4 @@
-use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::{array::RecordBatch, datatypes::Schema};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -25,7 +25,10 @@ impl RecordSet {
             write_message, DictionaryTracker, IpcDataGenerator, IpcWriteOptions,
         };
 
-        let schema = self.batches[0].schema();
+        let schema = self
+            .batches
+            .get(0)
+            .map_or_else(|| Schema::empty().into(), |batch| batch.schema());
 
         let mut buffer = vec![];
         let generator = IpcDataGenerator::default();

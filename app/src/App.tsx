@@ -1,29 +1,27 @@
+import { createMemo, createSignal } from 'solid-js'
 import { Table, createTableState } from 'solid-tabular'
 import { createRecordSetView } from './createRecordSetView'
-import { create_record_set, file_read_test } from 'engine'
+import { empty, read_csv } from 'engine'
 import 'solid-tabular/styles.css'
 
-const recordSet = await create_record_set(1, 10001)
-
-type File = {
-  size: number
-  read(start: number, end: number): Promise<Uint8Array>
-}
-
 function App() {
-  const data = createRecordSetView({
-    schema: recordSet.encode_schema(),
-    numRows: recordSet.num_rows(),
-    getRows: (start, end) => Promise.resolve(recordSet.encode_rows(start, end)),
-  })
+  const [recordSet, setRecordSet] = createSignal(empty())
+
+  const data = createMemo(() =>
+    createRecordSetView({
+      schema: recordSet().encode_schema(),
+      numRows: recordSet().num_rows(),
+      getRows: (start, end) => Promise.resolve(recordSet().encode_rows(start, end)),
+    }),
+  )
 
   const tableProps = createTableState([])
 
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     const file = el.files![0]!
-    const result = file_read_test(file)
-    result.then(console.log)
+    file.arrayBuffer().then(console.log)
+    read_csv(file).then(setRecordSet)
   }
 
   return (
@@ -32,10 +30,10 @@ function App() {
       <div style={{ height: '20px' }} />
       <div style={{ 'border-radius': '6px', overflow: 'hidden', height: '100%' }}>
         <Table
-          columns={data.columns.map(f => f.name)}
-          numRows={data.numRows}
-          getCellValue={(row, col) => data.getCellValue(row, col) ?? ''}
-          onViewportChanged={data.setVisibleRange}
+          columns={data().columns.map(f => f.name)}
+          numRows={data().numRows}
+          getCellValue={(row, col) => data().getCellValue(row, col) ?? ''}
+          onViewportChanged={data().setVisibleRange}
           activeRange={tableProps.activeRange}
           setActiveRange={tableProps.setActiveRange}
           getColumnSize={tableProps.getColumnSize}
