@@ -1,3 +1,4 @@
+mod byte_transform;
 mod js_object_store;
 mod record_set;
 mod utils;
