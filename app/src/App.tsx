@@ -24,7 +24,9 @@ function App() {
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     const file = el.files![0]!
-    read_file(file).then(setRecordSet)
+    read_file(file)
+      .then(plan => plan.limit(0, 20).collect())
+      .then(setRecordSet)
   }
 
   return (

@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::Range;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use datafusion::object_store::path::Path;
@@ -11,10 +12,10 @@ use futures::{SinkExt, StreamExt};
 use wasm_bindgen_futures::JsFuture;
 
 #[derive(Debug)]
-pub struct JsObjectStore(Vec<File>);
+pub struct JsObjectStore(Arc<[File]>);
 
 impl JsObjectStore {
-    pub fn new(files: Vec<File>) -> Self {
+    pub fn new(files: Arc<[File]>) -> Self {
         Self(files)
     }
 }

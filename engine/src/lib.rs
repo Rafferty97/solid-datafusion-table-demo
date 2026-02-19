@@ -2,13 +2,15 @@ mod js_object_store;
 mod record_set;
 mod utils;
 
+use std::convert::TryFrom;
 use std::ops::Range;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::Schema;
-use datafusion::logical_expr::LogicalPlan;
+use datafusion::execution::TaskContext;
+use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder};
+use datafusion::physical_plan::collect;
 use datafusion::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -16,11 +18,11 @@ use wasm_bindgen_futures::JsFuture;
 use crate::js_object_store::{File, JsObjectStore};
 use crate::record_set::RecordSet;
 
-// #[wasm_bindgen]
-// pub struct Plan {
-//     plan: LogicalPlan,
-//     files: Arc<Mutex<Vec<>>>
-// }
+#[wasm_bindgen]
+pub struct Plan {
+    plan: LogicalPlan,
+    files: Arc<[File]>,
+}
 
 #[wasm_bindgen]
 pub fn empty() -> Result<RecordSet, String> {
@@ -30,42 +32,62 @@ pub fn empty() -> Result<RecordSet, String> {
 }
 
 #[wasm_bindgen]
-pub async fn read_file(file: web_sys::File) -> Result<RecordSet, String> {
-    // let batches = SessionContext::new()
-    //     .read_empty()
-    //     .map_err(|_| "cannot read empty")?
-    //     .select([
-    //         lit("hello world").alias("foo"),
-    //         range(lit(min), lit(max), lit(1)).alias("n"),
-    //     ])
-    //     .map_err(|_| "cannot select")?
-    //     .unnest_columns(&["n"])
-    //     .map_err(|_| "cannot unnest")?
-    //     .collect()
-    //     .await
-    //     .map_err(|_| "cannot collect")?;
-
+pub async fn read_file(file: web_sys::File) -> Result<Plan, String> {
     let filename = file.name();
     let ext = std::path::Path::new(&filename)
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap();
 
-    let object_store = Arc::new(JsObjectStore::new(vec![File::from_file(file)]));
+    let file = File::from_file(file);
+    let files = Arc::new([file]);
 
     let ctx = SessionContext::new();
-    ctx.register_object_store(&url::Url::from_str("js:///").unwrap(), object_store);
-
-    let batches = match ext {
+    let file_store = Arc::new(JsObjectStore::new(files.clone()));
+    ctx.register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
+    let plan = match ext {
         "csv" => ctx.read_csv("js:///0.csv", Default::default()).await,
         "json" => ctx.read_json("js:///0.json", Default::default()).await,
         "jsonl" => ctx.read_json("js:///0.json", Default::default()).await,
         "parquet" => ctx.read_parquet("js:///0.parquet", Default::default()).await,
         _ => Err(format!("unknown file extension: {ext}"))?,
     };
-    let batches = batches.unwrap().collect().await.unwrap();
+    let plan = plan.map_err(|err| err.to_string())?.into_unoptimized_plan();
 
-    Ok(batches.into())
+    Ok(Plan { plan, files })
+}
+
+#[wasm_bindgen]
+impl Plan {
+    pub fn limit(self, skip: usize, fetch: Option<usize>) -> Result<Self, String> {
+        let Self { plan, files } = self;
+        let plan = LogicalPlanBuilder::new(plan)
+            .limit(skip, fetch)
+            .map_err(|err| err.to_string())?
+            .build()
+            .map_err(|err| err.to_string())?;
+        Ok(Self { plan, files })
+    }
+
+    pub async fn collect(&self) -> Result<RecordSet, String> {
+        let files = self.files.clone();
+        let file_store = Arc::new(JsObjectStore::new(files));
+
+        let state = SessionContext::new().state();
+        state
+            .runtime_env()
+            .register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
+        let physical_plan = state
+            .create_physical_plan(&self.plan)
+            .await
+            .map_err(|err| err.to_string())?;
+        let task_ctx = Arc::new(TaskContext::from(&state));
+
+        let schema = physical_plan.schema();
+        let batches = collect(physical_plan, task_ctx).await.map_err(|err| err.to_string())?;
+
+        Ok(RecordSet::new(schema, batches))
+    }
 }
 
 #[wasm_bindgen]
