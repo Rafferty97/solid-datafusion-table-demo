@@ -28,10 +28,10 @@ function App() {
   }
 
   return (
-    <div style={{ width: '100%', padding: '20px' }}>
+    <div style={{ width: '100%', padding: '20px', display: 'flex', 'flex-direction': 'column' }}>
       <input id="fileupload" type="file" onChange={handleUpload} />
       <div style={{ height: '20px' }} />
-      <div style={{ 'border-radius': '6px', overflow: 'hidden', height: '100%' }}>
+      <div style={{ 'border-radius': '6px', overflow: 'hidden', flex: '1' }}>
         <Table
           columns={data().columns.map(f => f.name)}
           numRows={data().numRows}
