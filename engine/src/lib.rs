@@ -23,7 +23,7 @@ pub fn empty() -> Result<RecordSet, String> {
 }
 
 #[wasm_bindgen]
-pub async fn read_csv(file: web_sys::Blob) -> Result<RecordSet, String> {
+pub async fn read_file(file: web_sys::Blob, ext: &str) -> Result<RecordSet, String> {
     // let batches = SessionContext::new()
     //     .read_empty()
     //     .map_err(|_| "cannot read empty")?
@@ -45,13 +45,14 @@ pub async fn read_csv(file: web_sys::Blob) -> Result<RecordSet, String> {
     let ctx = SessionContext::new();
     ctx.register_object_store(&url::Url::from_str("js:///").unwrap(), object_store);
 
-    let batches = ctx
-        .read_csv("js:///input.csv", Default::default())
-        .await
-        .unwrap()
-        .collect()
-        .await
-        .unwrap();
+    let batches = match ext {
+        "csv" => ctx.read_csv("js:///input.csv", Default::default()).await,
+        "json" => ctx.read_json("js:///input.json", Default::default()).await,
+        "jsonl" => ctx.read_json("js:///input.json", Default::default()).await,
+        "parquet" => ctx.read_parquet("js:///input.parquet", Default::default()).await,
+        _ => Err(format!("unknown file extension: {ext}"))?,
+    };
+    let batches = batches.unwrap().collect().await.unwrap();
 
     Ok(batches.into())
 }

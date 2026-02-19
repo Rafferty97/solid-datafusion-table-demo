@@ -1,7 +1,7 @@
 import { createMemo, createSignal } from 'solid-js'
 import { Table, createTableState } from 'solid-tabular'
 import { createRecordSetView } from './createRecordSetView'
-import { empty, read_csv } from 'engine'
+import { empty, read_file } from 'engine'
 import 'solid-tabular/styles.css'
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     const file = el.files![0]!
-    read_csv(file).then(setRecordSet)
+    read_file(file, file.name.match(/\.([a-z]+)$/i)![1]).then(setRecordSet)
   }
 
   return (
