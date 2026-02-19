@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js'
+import { createEffect, createSignal, type Accessor } from 'solid-js'
 import { Field, Table, tableFromIPC } from 'apache-arrow'
 
 export type RecordSet = Readonly<{
@@ -11,7 +11,6 @@ export type RecordSetView = Readonly<{
   columns: Field[]
   numRows: number
   getCellValue(row: number, column: string): any
-  setVisibleRange(start: number, end: number): void
 }>
 
 export type RecordSetViewOptions = Readonly<{
@@ -21,13 +20,17 @@ export type RecordSetViewOptions = Readonly<{
   overscan?: number
 }>
 
-export function createRecordSetView(recordSet: RecordSet, options: RecordSetViewOptions = {}): RecordSetView {
+export function createRecordSetView(
+  data: RecordSet,
+  visibleRange: Accessor<{ start: number; end: number }>,
+  options: RecordSetViewOptions = {},
+): RecordSetView {
   const batchSize = options.batchSize ?? 50
   const overscan = options.overscan ?? 20
 
-  const schema = tableFromIPC(recordSet.schema).schema
+  const schema = tableFromIPC(data.schema).schema
   const columns = schema.fields
-  const numRows = recordSet.numRows
+  const numRows = data.numRows
 
   const [pages, setPages] = createSignal(new Map<number, Table>())
   let startPage = 0
@@ -39,7 +42,8 @@ export function createRecordSetView(recordSet: RecordSet, options: RecordSetView
     return pages().get(pageIdx)?.get(pageRow)?.[column]
   }
 
-  const setVisibleRange = (start: number, end: number) => {
+  createEffect(() => {
+    const { start, end } = visibleRange()
     const [prevStartPage, prevEndPage] = [startPage, endPage]
 
     // Compute new visible page range
@@ -49,15 +53,15 @@ export function createRecordSetView(recordSet: RecordSet, options: RecordSetView
     // Fetch pages that need to be fetched
     for (let pageIdx = startPage; pageIdx < endPage; pageIdx++) {
       if (pageIdx >= prevStartPage && pageIdx < prevEndPage) continue
-      recordSet
+      data
         .getRows(pageIdx * batchSize, (pageIdx + 1) * batchSize)
-        .then(rowData => tableFromIPC([recordSet.schema, rowData]))
+        .then(rowData => tableFromIPC([data.schema, rowData]))
         .then(table => setPages(m => new Map([...m, [pageIdx, table]])))
     }
 
     // Clean up pages that are no longer needed
     setPages(m => new Map([...m].filter(([i]) => i >= startPage && i < endPage)))
-  }
+  })
 
-  return { columns, numRows, getCellValue, setVisibleRange }
+  return { columns, numRows, getCellValue }
 }

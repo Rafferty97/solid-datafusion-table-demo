@@ -39,15 +39,7 @@ pub async fn read_csv(file: web_sys::Blob) -> Result<RecordSet, String> {
     //     .map_err(|_| "cannot collect")?;
 
     let bytes = JsFuture::from(file.array_buffer()).await.unwrap();
-    let bytes = js_sys::Uint8Array::from(bytes).to_vec();
-    web_sys::console::log_1(&format!("bytes = {}", bytes.len()).into());
-    web_sys::console::log_1(
-        &format!(
-            "{}",
-            String::from_utf8_lossy(&bytes[..bytes.len().min(100)])
-        )
-        .into(),
-    );
+    let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
     let object_store = Arc::new(JsObjectStore::new(bytes));
 
     let ctx = SessionContext::new();
@@ -60,8 +52,6 @@ pub async fn read_csv(file: web_sys::Blob) -> Result<RecordSet, String> {
         .collect()
         .await
         .unwrap();
-
-    web_sys::console::log_1(&format!("batches = {}", batches.len()).into());
 
     Ok(batches.into())
 }

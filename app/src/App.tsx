@@ -6,21 +6,24 @@ import 'solid-tabular/styles.css'
 
 function App() {
   const [recordSet, setRecordSet] = createSignal(empty())
+  const [visibleRange, setVisibleRange] = createSignal({ start: 0, end: 0 })
 
-  const data = createMemo(() =>
-    createRecordSetView({
-      schema: recordSet().encode_schema(),
-      numRows: recordSet().num_rows(),
-      getRows: (start, end) => Promise.resolve(recordSet().encode_rows(start, end)),
-    }),
-  )
+  const data = createMemo(() => {
+    return createRecordSetView(
+      {
+        schema: recordSet().encode_schema(),
+        numRows: recordSet().num_rows(),
+        getRows: (start, end) => Promise.resolve(recordSet().encode_rows(start, end)),
+      },
+      visibleRange,
+    )
+  })
 
   const tableProps = createTableState([])
 
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     const file = el.files![0]!
-    file.arrayBuffer().then(console.log)
     read_csv(file).then(setRecordSet)
   }
 
@@ -33,7 +36,7 @@ function App() {
           columns={data().columns.map(f => f.name)}
           numRows={data().numRows}
           getCellValue={(row, col) => data().getCellValue(row, col) ?? ''}
-          onViewportChanged={data().setVisibleRange}
+          onViewportChanged={(start, end) => setVisibleRange({ start, end })}
           activeRange={tableProps.activeRange}
           setActiveRange={tableProps.setActiveRange}
           getColumnSize={tableProps.getColumnSize}
