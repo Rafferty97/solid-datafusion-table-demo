@@ -24,6 +24,7 @@ impl JsObjectStore {
 pub struct File {
     size: u64,
     read_bytes: mpsc::UnboundedSender<(Range<u64>, oneshot::Sender<Vec<u8>>)>,
+    // FIXME: Add `Option<Arc<dyn Decoder>>`
 }
 
 impl File {
