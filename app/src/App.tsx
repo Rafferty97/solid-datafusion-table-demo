@@ -24,7 +24,7 @@ function App() {
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     const file = el.files![0]!
-    read_file(file, file.name.match(/\.([a-z]+)$/i)![1]).then(setRecordSet)
+    read_file(file).then(setRecordSet)
   }
 
   return (

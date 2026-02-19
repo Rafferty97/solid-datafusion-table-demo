@@ -33,7 +33,12 @@ js-sys = "0.3.82"
 url = "2.5.8"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.50"
-web-sys = { version = "0.3.82", features = ["Blob", "File", "console"] }
+web-sys = { version = "0.3.82", features = [
+    "Blob",
+    "File",
+    "FileSystemFileHandle",
+    "console",
+] }
 # bytes = "1.0"
 # itertools = "0.14.0"
 # serde = "1.0.219"

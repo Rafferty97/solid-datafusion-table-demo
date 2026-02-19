@@ -4,16 +4,23 @@ mod utils;
 
 use std::ops::Range;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::Schema;
+use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::js_object_store::JsObjectStore;
+use crate::js_object_store::{File, JsObjectStore};
 use crate::record_set::RecordSet;
+
+// #[wasm_bindgen]
+// pub struct Plan {
+//     plan: LogicalPlan,
+//     files: Arc<Mutex<Vec<>>>
+// }
 
 #[wasm_bindgen]
 pub fn empty() -> Result<RecordSet, String> {
@@ -23,7 +30,7 @@ pub fn empty() -> Result<RecordSet, String> {
 }
 
 #[wasm_bindgen]
-pub async fn read_file(file: web_sys::Blob, ext: &str) -> Result<RecordSet, String> {
+pub async fn read_file(file: web_sys::File) -> Result<RecordSet, String> {
     // let batches = SessionContext::new()
     //     .read_empty()
     //     .map_err(|_| "cannot read empty")?
@@ -38,18 +45,22 @@ pub async fn read_file(file: web_sys::Blob, ext: &str) -> Result<RecordSet, Stri
     //     .await
     //     .map_err(|_| "cannot collect")?;
 
-    let bytes = JsFuture::from(file.array_buffer()).await.unwrap();
-    let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
-    let object_store = Arc::new(JsObjectStore::new(bytes));
+    let filename = file.name();
+    let ext = std::path::Path::new(&filename)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap();
+
+    let object_store = Arc::new(JsObjectStore::new(vec![File::from_file(file)]));
 
     let ctx = SessionContext::new();
     ctx.register_object_store(&url::Url::from_str("js:///").unwrap(), object_store);
 
     let batches = match ext {
-        "csv" => ctx.read_csv("js:///input.csv", Default::default()).await,
-        "json" => ctx.read_json("js:///input.json", Default::default()).await,
-        "jsonl" => ctx.read_json("js:///input.json", Default::default()).await,
-        "parquet" => ctx.read_parquet("js:///input.parquet", Default::default()).await,
+        "csv" => ctx.read_csv("js:///0.csv", Default::default()).await,
+        "json" => ctx.read_json("js:///0.json", Default::default()).await,
+        "jsonl" => ctx.read_json("js:///0.json", Default::default()).await,
+        "parquet" => ctx.read_parquet("js:///0.parquet", Default::default()).await,
         _ => Err(format!("unknown file extension: {ext}"))?,
     };
     let batches = batches.unwrap().collect().await.unwrap();
