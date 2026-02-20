@@ -1,11 +1,11 @@
 import { createMemo, createSignal } from 'solid-js'
 import { Table, createTableState } from 'solid-tabular'
 import { createRecordSetView } from './createRecordSetView'
-import { empty, read_file } from 'engine'
+import { Plan, RecordSet } from 'engine'
 import 'solid-tabular/styles.css'
 
 function App() {
-  const [recordSet, setRecordSet] = createSignal(empty())
+  const [recordSet, setRecordSet] = createSignal(RecordSet.empty())
   const [visibleRange, setVisibleRange] = createSignal({ start: 0, end: 0 })
 
   const data = createMemo(() => {
@@ -25,14 +25,14 @@ function App() {
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     file = el.files![0]!
-    read_file(file)
+    Plan.read_file(file)
       .then(plan => plan.limit(0).collect())
       .then(setRecordSet)
   }
 
   const refresh = () => {
     if (!file) return
-    read_file(file)
+    Plan.read_file(file)
       .then(plan => plan.limit(0).collect())
       .then(setRecordSet)
   }

@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use datafusion::object_store::path::Path;
 use datafusion::object_store::{self, *};
 use futures::stream::BoxStream;
-use futures::SinkExt;
 
 #[derive(Debug)]
 pub struct JsObjectStore(Arc<[FileReader]>);

@@ -27,26 +27,37 @@ impl RecordSet {
 
 #[wasm_bindgen]
 impl RecordSet {
+    pub fn empty() -> Result<Self, String> {
+        let schema = Schema::empty().into();
+        let batches = vec![RecordBatch::new_empty(schema)];
+        Ok(batches.into())
+    }
+
     pub fn num_rows(&self) -> usize {
         self.num_rows
     }
 
     pub fn encode_schema(&self) -> Vec<u8> {
-        use datafusion::arrow::ipc::writer::{write_message, DictionaryTracker, IpcDataGenerator, IpcWriteOptions};
+        use datafusion::arrow::ipc::writer::{
+            write_message, DictionaryTracker, IpcDataGenerator, IpcWriteOptions,
+        };
 
         let mut buffer = vec![];
         let generator = IpcDataGenerator::default();
         let mut tracker = DictionaryTracker::new(true);
         let opts = IpcWriteOptions::default();
 
-        let encoded = generator.schema_to_bytes_with_dictionary_tracker(&self.schema, &mut tracker, &opts);
+        let encoded =
+            generator.schema_to_bytes_with_dictionary_tracker(&self.schema, &mut tracker, &opts);
         write_message(&mut buffer, encoded, &opts).unwrap();
 
         buffer
     }
 
     pub fn encode_rows(&self, start: usize, end: usize) -> Vec<u8> {
-        use datafusion::arrow::ipc::writer::{write_message, DictionaryTracker, IpcDataGenerator, IpcWriteOptions};
+        use datafusion::arrow::ipc::writer::{
+            write_message, DictionaryTracker, IpcDataGenerator, IpcWriteOptions,
+        };
 
         let mut buffer = vec![];
         let generator = IpcDataGenerator::default();
@@ -67,7 +78,9 @@ impl RecordSet {
                 Some(batch.slice(i, j - i))
             })
             .for_each(|batch| {
-                let (dicts, batch) = generator.encoded_batch(&batch, &mut tracker, &opts).unwrap();
+                let (dicts, batch) = generator
+                    .encoded_batch(&batch, &mut tracker, &opts)
+                    .unwrap();
                 assert!(dicts.is_empty());
                 write_message(&mut buffer, batch, &opts).unwrap();
             });
