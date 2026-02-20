@@ -21,17 +21,28 @@ function App() {
 
   const tableProps = createTableState([])
 
+  let file: File | undefined
   const handleUpload = () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
-    const file = el.files![0]!
+    file = el.files![0]!
     read_file(file)
-      .then(plan => plan.limit(0, 20).collect())
+      .then(plan => plan.limit(0).collect())
+      .then(setRecordSet)
+  }
+
+  const refresh = () => {
+    if (!file) return
+    read_file(file)
+      .then(plan => plan.limit(0).collect())
       .then(setRecordSet)
   }
 
   return (
     <div style={{ width: '100%', padding: '20px', display: 'flex', 'flex-direction': 'column' }}>
-      <input id="fileupload" type="file" onChange={handleUpload} />
+      <div style={{ display: 'flex' }}>
+        <input id="fileupload" type="file" onChange={handleUpload} />
+        <button onClick={refresh}>Refresh</button>
+      </div>
       <div style={{ height: '20px' }} />
       <div style={{ 'border-radius': '6px', overflow: 'hidden', flex: '1' }}>
         <Table

@@ -13,11 +13,15 @@ use datafusion::execution::TaskContext;
 use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder};
 use datafusion::physical_plan::collect;
 use datafusion::prelude::*;
+use encoding_rs::Encoding;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
+use crate::byte_transform::chunked::ChunkedDecoderBuilder;
+use crate::byte_transform::utf8_encoder::Utf8Encoder;
 use crate::js_object_store::{File, JsObjectStore};
 use crate::record_set::RecordSet;
+use crate::utils::chunk_ranges;
 
 #[wasm_bindgen]
 pub struct Plan {
@@ -40,17 +44,35 @@ pub async fn read_file(file: web_sys::File) -> Result<Plan, String> {
         .and_then(|ext| ext.to_str())
         .unwrap();
 
-    let file = File::from_file(file);
+    let transform = Utf8Encoder::new(Encoding::for_label(b"ISO-8859-1").unwrap());
+    let mut builder = ChunkedDecoderBuilder::new_with_state(transform);
+    for (range, last) in chunk_ranges(file.size() as _, 32 * 1024) {
+        let bytes = file
+            .slice_with_i32_and_i32(range.start as i32, range.end as i32)
+            .unwrap();
+        let bytes = JsFuture::from(bytes.array_buffer()).await.unwrap();
+        let bytes = js_sys::Uint8Array::new(&bytes);
+        builder.feed(&bytes.to_vec(), last);
+    }
+    let decoder = builder.build();
+
+    let file = File::from_file(file, Some(Arc::new(decoder)));
     let files = Arc::new([file]);
 
     let ctx = SessionContext::new();
     let file_store = Arc::new(JsObjectStore::new(files.clone()));
     ctx.register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
     let plan = match ext {
-        "csv" => ctx.read_csv("js:///0.csv", Default::default()).await,
+        "csv" => {
+            let opts = CsvReadOptions::new().has_header(true);
+            ctx.read_csv("js:///0.csv", opts).await
+        }
         "json" => ctx.read_json("js:///0.json", Default::default()).await,
         "jsonl" => ctx.read_json("js:///0.json", Default::default()).await,
-        "parquet" => ctx.read_parquet("js:///0.parquet", Default::default()).await,
+        "parquet" => {
+            ctx.read_parquet("js:///0.parquet", Default::default())
+                .await
+        }
         _ => Err(format!("unknown file extension: {ext}"))?,
     };
     let plan = plan.map_err(|err| err.to_string())?.into_unoptimized_plan();
@@ -85,7 +107,9 @@ impl Plan {
         let task_ctx = Arc::new(TaskContext::from(&state));
 
         let schema = physical_plan.schema();
-        let batches = collect(physical_plan, task_ctx).await.map_err(|err| err.to_string())?;
+        let batches = collect(physical_plan, task_ctx)
+            .await
+            .map_err(|err| format!("{err:?}"))?;
 
         Ok(RecordSet::new(schema, batches))
     }

@@ -38,7 +38,7 @@ pub trait ByteTransform: Sized {
     fn with_state(&self, state: &Self::State) -> Self;
 }
 
-pub trait Decoder {
+pub trait Decoder: Debug {
     fn output_size(&self) -> u64;
     fn calc_input_range(&self, output_range: Range<u64>) -> Range<u64>;
     fn decode_range(&self, src: &[u8], src_offset: u64, dst_range: Range<u64>) -> Vec<u8>;
