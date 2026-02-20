@@ -1,4 +1,5 @@
 mod byte_transform;
+mod file;
 mod js_object_store;
 mod record_set;
 mod utils;
@@ -17,16 +18,15 @@ use encoding_rs::Encoding;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::byte_transform::chunked::ChunkedDecoderBuilder;
 use crate::byte_transform::utf8_encoder::Utf8Encoder;
-use crate::js_object_store::{File, JsObjectStore};
+use crate::file::{FileReader, FileSource};
+use crate::js_object_store::JsObjectStore;
 use crate::record_set::RecordSet;
-use crate::utils::chunk_ranges;
 
 #[wasm_bindgen]
 pub struct Plan {
     plan: LogicalPlan,
-    files: Arc<[File]>,
+    files: Arc<[FileReader]>,
 }
 
 #[wasm_bindgen]
@@ -45,18 +45,8 @@ pub async fn read_file(file: web_sys::File) -> Result<Plan, String> {
         .unwrap();
 
     let transform = Utf8Encoder::new(Encoding::for_label(b"ISO-8859-1").unwrap());
-    let mut builder = ChunkedDecoderBuilder::new_with_state(transform);
-    for (range, last) in chunk_ranges(file.size() as _, 32 * 1024) {
-        let bytes = file
-            .slice_with_i32_and_i32(range.start as i32, range.end as i32)
-            .unwrap();
-        let bytes = JsFuture::from(bytes.array_buffer()).await.unwrap();
-        let bytes = js_sys::Uint8Array::new(&bytes);
-        builder.feed(&bytes.to_vec(), last);
-    }
-    let decoder = builder.build();
-
-    let file = File::from_file(file, Some(Arc::new(decoder)));
+    let file = file.transform(transform).await;
+    let file = FileReader::new(file);
     let files = Arc::new([file]);
 
     let ctx = SessionContext::new();
