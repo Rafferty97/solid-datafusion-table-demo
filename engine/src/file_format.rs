@@ -8,12 +8,9 @@ pub enum FileFormat {
     #[serde(rename_all = "camelCase")]
     Json {
         #[tsify(optional)]
-        wrap_key: Option<String>,
-    },
-    #[serde(rename_all = "camelCase")]
-    JsonLines {
+        flatten_top_level_arrays: bool,
         #[tsify(optional)]
-        wrap_key: Option<String>,
+        single_field: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
     Csv {

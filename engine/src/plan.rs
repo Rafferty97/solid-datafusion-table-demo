@@ -1,15 +1,21 @@
 use std::convert::TryFrom;
 use std::sync::Arc;
 
+use datafusion::datasource::listing::{
+    ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
+};
+use datafusion::datasource::provider_as_source;
 use datafusion::execution::TaskContext;
-use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder};
+use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder, UNNAMED_TABLE};
 use datafusion::physical_plan::collect;
 use datafusion::prelude::*;
 use wasm_bindgen::prelude::*;
 
 use crate::file::FileReader;
+use crate::file_format::FileFormat;
 use crate::js_object_store::JsObjectStore;
 use crate::record_set::RecordSet;
+use crate::JsSchema;
 
 #[wasm_bindgen]
 pub struct Plan {
@@ -19,33 +25,46 @@ pub struct Plan {
 
 #[wasm_bindgen]
 impl Plan {
-    pub async fn read_file(file: web_sys::File) -> Result<Self, String> {
-        let filename = file.name();
-        let ext = std::path::Path::new(&filename)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap();
-
+    pub async fn read_file(
+        file: web_sys::File,
+        format: FileFormat,
+        schema: &JsSchema,
+    ) -> Result<Self, String> {
         let file = FileReader::new(file);
         let files = Arc::new([file]);
 
         let ctx = SessionContext::new();
         let file_store = Arc::new(JsObjectStore::new(files.clone()));
         ctx.register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
-        let plan = match ext {
-            "csv" => {
-                let opts = CsvReadOptions::new().has_header(true);
-                ctx.read_csv("js:///0.csv", opts).await
+
+        let format: Arc<dyn datafusion::datasource::file_format::FileFormat> = match format {
+            FileFormat::Json { .. } => {
+                let format = datafusion::datasource::file_format::json::JsonFormat::default();
+                Arc::new(format)
             }
-            "json" => ctx.read_json("js:///0.json", Default::default()).await,
-            "jsonl" => ctx.read_json("js:///0.json", Default::default()).await,
-            "parquet" => {
-                ctx.read_parquet("js:///0.parquet", Default::default())
-                    .await
+            FileFormat::Csv { has_headers, .. } => {
+                let format = datafusion::datasource::file_format::csv::CsvFormat::default()
+                    .with_has_header(has_headers);
+                Arc::new(format)
             }
-            _ => Err(format!("unknown file extension: {ext}"))?,
+            FileFormat::Parquet => {
+                let format = datafusion::datasource::file_format::parquet::ParquetFormat::default();
+                Arc::new(format)
+            }
         };
-        let plan = plan.map_err(|err| err.to_string())?.into_unoptimized_plan();
+
+        let url = "js:///0";
+        let config =
+            ListingTableConfig::new(ListingTableUrl::parse(url).map_err(|err| err.to_string())?)
+                .with_listing_options(ListingOptions::new(format).with_file_extension(""))
+                .with_schema(schema.inner().clone());
+        let listing_table = Arc::new(ListingTable::try_new(config).map_err(|err| err.to_string())?);
+        let source = provider_as_source(listing_table);
+
+        let plan = LogicalPlanBuilder::scan(UNNAMED_TABLE, source, None)
+            .map_err(|err| err.to_string())?
+            .build()
+            .map_err(|err| err.to_string())?;
 
         Ok(Plan { plan, files })
     }
