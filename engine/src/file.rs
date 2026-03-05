@@ -1,27 +1,14 @@
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::ops::Range;
-use std::sync::Arc;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
-
-use crate::byte_transform::chunked::ChunkedDecoderBuilder;
-use crate::byte_transform::{ByteTransform, Decoder};
-use crate::utils::chunk_ranges;
 
 pub trait FileSource {
     fn size(&self) -> u64;
 
     async fn read(&self, range: Range<u64>) -> Vec<u8>;
-
-    async fn transform<T>(self, transform: T) -> TransformedFileSource<Self>
-    where
-        Self: Sized,
-        T: ByteTransform + Clone + Debug + 'static,
-    {
-        TransformedFileSource::new(self, transform).await
-    }
 }
 
 impl FileSource for Vec<u8> {
@@ -68,40 +55,6 @@ impl FileSource for web_sys::File {
 
     async fn read(&self, range: Range<u64>) -> Vec<u8> {
         FileSource::read(self as &web_sys::Blob, range).await
-    }
-}
-
-pub struct TransformedFileSource<F: FileSource> {
-    file: F,
-    decoder: Arc<dyn Decoder>,
-}
-
-impl<F: FileSource> TransformedFileSource<F> {
-    pub async fn new<T>(file: F, transform: T) -> Self
-    where
-        T: ByteTransform + Clone + Debug + 'static,
-    {
-        let mut builder = ChunkedDecoderBuilder::new_with_state(transform);
-        for (range, last) in chunk_ranges(file.size() as _, 32 * 1024) {
-            let bytes = file.read(range).await;
-            builder.feed(&bytes, last);
-        }
-        let decoder = Arc::new(builder.build());
-
-        Self { file, decoder }
-    }
-}
-
-impl<F: FileSource> FileSource for TransformedFileSource<F> {
-    fn size(&self) -> u64 {
-        self.decoder.output_size()
-    }
-
-    async fn read(&self, range: Range<u64>) -> Vec<u8> {
-        let src_range = self.decoder.calc_input_range(range.clone());
-        let src_bytes = self.file.read(src_range.clone()).await;
-        let src_start = src_range.start;
-        self.decoder.decode_range(&src_bytes, src_start, range)
     }
 }
 

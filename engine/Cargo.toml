@@ -27,7 +27,6 @@ datafusion = { version = "50.3.0", default-features = false, features = [
     "parquet",
     "serde",
 ] }
-encoding_rs = "0.8.35"
 futures = "0.3"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 getrandom2 = { package = "getrandom", version = "0.2", features = ["js"] }

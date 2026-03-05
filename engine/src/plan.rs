@@ -5,11 +5,9 @@ use datafusion::execution::TaskContext;
 use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder};
 use datafusion::physical_plan::collect;
 use datafusion::prelude::*;
-use encoding_rs::Encoding;
 use wasm_bindgen::prelude::*;
 
-use crate::byte_transform::utf8_encoder::Utf8Encoder;
-use crate::file::{FileReader, FileSource};
+use crate::file::FileReader;
 use crate::js_object_store::JsObjectStore;
 use crate::record_set::RecordSet;
 
@@ -28,8 +26,6 @@ impl Plan {
             .and_then(|ext| ext.to_str())
             .unwrap();
 
-        let transform = Utf8Encoder::new(Encoding::for_label(b"ISO-8859-1").unwrap());
-        let file = file.transform(transform).await;
         let file = FileReader::new(file);
         let files = Arc::new([file]);
 
