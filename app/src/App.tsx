@@ -39,7 +39,7 @@ function App() {
 
   const refresh = () => {
     if (!file) return
-    console.log(file, format, schema)
+    console.log(file, format, schema.to_string())
     Plan.read_file(file, format, schema)
       .then(plan => plan.limit(0).collect())
       .then(setRecordSet)

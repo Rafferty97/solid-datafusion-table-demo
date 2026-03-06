@@ -33,13 +33,11 @@ impl Plan {
         let file = FileReader::new(file);
         let files = Arc::new([file]);
 
-        let ctx = SessionContext::new();
-        let file_store = Arc::new(JsObjectStore::new(files.clone()));
-        ctx.register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
-
         let format: Arc<dyn datafusion::datasource::file_format::FileFormat> = match format {
-            FileFormat::Json { .. } => {
-                let format = datafusion::datasource::file_format::json::JsonFormat::default();
+            FileFormat::Json { flatten_top_level_arrays, single_field } => {
+                let format = datafusion::datasource::file_format::json::JsonFormat::default()
+                    .with_newline_delimited(!flatten_top_level_arrays)
+                    .with_single_field(single_field.is_some());
                 Arc::new(format)
             }
             FileFormat::Csv { has_headers, .. } => {
