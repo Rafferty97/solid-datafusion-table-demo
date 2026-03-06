@@ -4,8 +4,6 @@ Plan:
   - Fluent JS API for constructing logical plans
   - Expression parser
   - Excellent error reporting
-  - `RecordSet` which internally uses `apache-arrow` JS crate
-  - Read data files from JS land
 - Will probably need to wrap the Rust-generated JS code in another typscript package
 - First step is probably to settle on final typescript API
 
