@@ -1,7 +1,7 @@
 import { createMemo, createSignal } from 'solid-js'
 import { Table, createTableState } from 'solid-tabular'
 import { createRecordSetView } from './createRecordSetView'
-import { infer_file_format_and_schema, Plan, RecordSet, Schema, type FileFormat } from 'engine'
+import { infer_file_format, infer_file_schema, Plan, RecordSet, Schema, type FileFormat } from 'engine'
 import 'solid-tabular/styles.css'
 
 function App() {
@@ -25,21 +25,16 @@ function App() {
   let format: FileFormat = { format: 'parquet' }
   let schema: Schema = Schema.empty()
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const el = document.querySelector<HTMLInputElement>('#fileupload')!
     file = el.files![0]!
-
-    infer_file_format_and_schema(file)
-      .then(result => {
-        format = result.format()
-        schema = result.schema()
-      })
-      .then(refresh)
+    format = await infer_file_format(file)
+    schema = await infer_file_schema(file, format)
+    refresh()
   }
 
   const refresh = () => {
     if (!file) return
-    console.log(file, format, schema.to_string())
     Plan.read_file(file, format, schema)
       .then(plan => plan.limit(0).collect())
       .then(setRecordSet)
