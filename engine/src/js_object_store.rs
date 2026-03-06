@@ -72,10 +72,6 @@ impl ObjectStore for JsObjectStore {
         unimplemented!()
     }
 
-    async fn delete(&self, _location: &Path) -> Result<()> {
-        unimplemented!()
-    }
-
     fn list(&self, _prefix: Option<&Path>) -> BoxStream<'static, Result<ObjectMeta>> {
         unimplemented!()
     }
@@ -92,15 +88,14 @@ impl ObjectStore for JsObjectStore {
         unimplemented!()
     }
 
-    async fn copy(&self, _from: &Path, _to: &Path) -> Result<()> {
+    fn delete_stream(
+        &self,
+        _locations: BoxStream<'static, Result<Path>>,
+    ) -> BoxStream<'static, Result<Path>> {
         unimplemented!()
     }
 
-    async fn rename(&self, _from: &Path, _to: &Path) -> Result<()> {
-        unimplemented!()
-    }
-
-    async fn copy_if_not_exists(&self, _from: &Path, _to: &Path) -> Result<()> {
+    async fn copy_opts(&self, _from: &Path, _to: &Path, _options: CopyOptions) -> Result<()> {
         unimplemented!()
     }
 }

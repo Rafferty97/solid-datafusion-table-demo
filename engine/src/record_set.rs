@@ -1,5 +1,6 @@
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
+use datafusion::arrow::ipc::writer::CompressionContext;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -63,6 +64,7 @@ impl RecordSet {
         let generator = IpcDataGenerator::default();
         let mut tracker = DictionaryTracker::new(false);
         let opts = IpcWriteOptions::default();
+        let mut compression = CompressionContext::default();
 
         self.batches
             .iter()
@@ -79,7 +81,7 @@ impl RecordSet {
             })
             .for_each(|batch| {
                 let (dicts, batch) = generator
-                    .encoded_batch(&batch, &mut tracker, &opts)
+                    .encode(&batch, &mut tracker, &opts, &mut compression)
                     .unwrap();
                 assert!(dicts.is_empty());
                 write_message(&mut buffer, batch, &opts).unwrap();
