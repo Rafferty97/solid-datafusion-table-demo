@@ -68,13 +68,12 @@ impl Plan {
     }
 
     pub fn limit(self, skip: usize, fetch: Option<usize>) -> Result<Self, String> {
-        let Self { plan, files } = self;
-        let plan = LogicalPlanBuilder::new(plan)
+        let plan = LogicalPlanBuilder::new(self.plan)
             .limit(skip, fetch)
             .map_err(|err| err.to_string())?
             .build()
             .map_err(|err| err.to_string())?;
-        Ok(Self { plan, files })
+        Ok(Self { plan, ..self })
     }
 
     pub async fn collect(&self) -> Result<RecordSet, String> {
