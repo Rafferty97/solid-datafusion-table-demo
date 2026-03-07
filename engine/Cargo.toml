@@ -29,6 +29,7 @@ datafusion = { version = "52", default-features = false, features = [
     "parquet",
     "serde",
 ] }
+datafusion-web-object-store = "0.1"
 futures = "0.3"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 getrandom2 = { package = "getrandom", version = "0.2", features = ["js"] }
@@ -45,18 +46,14 @@ web-sys = { version = "0.3", features = [
     "FileSystemFileHandle",
     "console",
 ] }
-# bytes = "1.0"
-# itertools = "0.14.0"
+
 # thiserror = "2.0.12"
 # async-trait = "0.1.88"
 # object_store = "0.12.3"
-# slotmap = { version = "1.0.7", features = ["serde"] }
 # lru = "0.16.0"
 # smallvec = "1.15.1"
 # paste = "1.0.15"
-# bincode = { version = "2.0.1", features = ["serde"] }
 # serde-wasm-bindgen = "0.6.5"
-# chardet = "0.2.4"
 
 [dev-dependencies]
 # tokio = { version = "1.45.1", features = ["macros", "rt", "sync"] }

@@ -9,28 +9,27 @@ use datafusion::execution::TaskContext;
 use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder, UNNAMED_TABLE};
 use datafusion::physical_plan::collect;
 use datafusion::prelude::*;
+use datafusion_web_object_store::{HashMapResolver, WebObjectStore};
+use url::Url;
 use wasm_bindgen::prelude::*;
 
-use crate::file::FileReader;
 use crate::file_format::FileFormat;
-use crate::js_object_store::JsObjectStore;
 use crate::record_set::RecordSet;
 use crate::JsSchema;
 
 #[wasm_bindgen]
 pub struct Plan {
     plan: LogicalPlan,
-    files: Arc<[FileReader]>,
+    files: Arc<[web_sys::Blob]>,
 }
 
 #[wasm_bindgen]
 impl Plan {
     pub async fn read_file(
-        file: web_sys::File,
+        file: web_sys::Blob,
         format: FileFormat,
         schema: &JsSchema,
     ) -> Result<Self, String> {
-        let file = FileReader::new(file);
         let files = Arc::new([file]);
 
         let format: Arc<dyn datafusion::datasource::file_format::FileFormat> = match format {
@@ -77,13 +76,16 @@ impl Plan {
     }
 
     pub async fn collect(&self) -> Result<RecordSet, String> {
-        let files = self.files.clone();
-        let file_store = Arc::new(JsObjectStore::new(files));
+        let mut files = HashMapResolver::new();
+        for (index, blob) in self.files.iter().enumerate() {
+            files.insert(format!("{index}"), blob.clone());
+        }
+        let file_store = Arc::new(WebObjectStore::new(files));
 
         let state = SessionContext::new().state();
-        state
-            .runtime_env()
-            .register_object_store(&url::Url::try_from("js:///").unwrap(), file_store);
+        let url = Url::try_from("js:///").unwrap();
+        state.runtime_env().register_object_store(&url, file_store);
+
         let physical_plan = state
             .create_physical_plan(&self.plan)
             .await

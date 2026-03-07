@@ -4,14 +4,11 @@ use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::file::FileSource;
 use crate::file_format::FileFormat;
 use crate::json_infer::{JsonDetector, JsonKind};
 use crate::utils::chunk_ranges;
 
-mod file;
 mod file_format;
-mod js_object_store;
 mod json_infer;
 mod plan;
 mod record_set;
@@ -65,7 +62,7 @@ pub async fn infer_file_format(file: &web_sys::File) -> Result<FileFormat, Strin
 
 #[wasm_bindgen]
 pub async fn infer_file_schema(
-    file: &web_sys::File,
+    file: &web_sys::Blob,
     format: FileFormat,
     max_records: Option<usize>,
 ) -> Result<JsSchema, String> {
@@ -73,7 +70,8 @@ pub async fn infer_file_schema(
     use datafusion::arrow::json::reader::{infer_json_schema_with_options, InferJsonSchemaOptions};
     use datafusion::parquet::arrow::ParquetRecordBatchStreamBuilder;
 
-    let bytes = file.read(0..file.size()).await;
+    let bytes = JsFuture::from(file.array_buffer()).await.unwrap();
+    let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
     let reader = std::io::Cursor::new(bytes);
 
     let schema = match format.clone() {
